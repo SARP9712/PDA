@@ -47,7 +47,7 @@ const tamaniosTostada = [
 ];
 
 const toppings = [
-  "York", "Jamón", "Pavo", "Queso", "Tomate", "Aguacate", "Huevo", "Bacon", "Mantequilla", "Pringa", "Choripicante", "Paté"
+  "York", "Jamón", "Pavo", "Queso", "Tomate", "Aguacate", "Huevo", "Bacon", "Mantequilla", "Pringa", "Choripicante", "Paté", "sin aceite"
 ];
 
 export default function ComandasApp() {
