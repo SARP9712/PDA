@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './ComandasApp.css';
+import { Sandwich } from 'lucide-react';
 
 const zonas = {
   Terraza: [1, 2, 3, 4, 5, 6],
@@ -8,19 +9,22 @@ const zonas = {
 };
 
 const categorias = {
-  Bebidas: ["Café", "Coca-Cola", "Zumo", "Agua", "Cerveza","Doble",
-    "Cola Cao",
+  Bebidas: ["Café", "Refresco", "Zumo", "Agua", "Cerveza","Doble",
+    "ColaCao","Sangria",
+    "Tinto Verano", "Agua Gas", "Agua mineral", "Rioja", "Ribera", "Blanco seco", "Blanco Dulce", "Blanco semi Dulce", "Manzanilla vino", "Canasta",
     "Batidos de Piña",
     "Batidos de Melocotón",
     "Batidos de Chocolate",
     "Batidos de Fresa",
     "Batidos de Vainilla"],
 
-
   Infusiones: ["Manzanilla", "Tila", "Negro", "Menta Poleo", "Verde", "Especial"],
-  Desayunos: ["Tostada", "Croissant", "Sandwich", "Bocadillo"]
-
-  
+  Desayunos: ["Tostada", "Croissant", "Sandwich", "Bocadillo"],
+  TapasFrias:["Ensaladilla", "Pata Alioli","Papa Aliñas", "Salmorejo", "Mini Anchoa", "Mini Sardina","Boquerones Vinagre", "Nacho Guacamole", "Tomate Aliñado", "Ventresca", "Wrap de pollo", "Mejillon Gigante", "Plato de patata", "Plato de aceituna", "Tabla Jamon", "Tabla Queso", "Tabla Mechada", "Tacos Veganos"],
+  TapasCalientes:["Carrillada", "Espicanas Garbanzo", "Tortilla patata", "Pisto con Huevo", "Carne con tomate", "lomo al Whisky","Burrito Pollo"],
+  Sandwich:["Vegetal Atun", "San Marcos", "Mixto"],
+  Montaditos:["Piripi", "Gambas Alioli", "pollo Carbonara", "Lomo Roque", "Chori", "Rulo de Cabra", "Mini Serrano", "Mon Tortilla"],
+  Bolleria:["Donut", "Cruasan", "Napolitana", "Crusan Mixto", "Crusan Serrano", "Tarta Casera", "Crusan ser&Que","Rosquilla", "Pastitas Arabes", "Magdalena"],
 };
 
 // Configuración para cafés
@@ -47,16 +51,43 @@ const tamaniosTostada = [
 ];
 
 const toppings = [
-  "York", "Jamón", "Pavo", "Queso", "Tomate", "Aguacate", "Huevo", "Bacon", "Mantequilla", "Pringa", "Choripicante", "Paté", "sin aceite"
+  "York", "Jamón", "Pavo", "Queso", "Toma T", "Tomate Ro", "Aguacate", "Huevo", "Bacon", "Mantequilla", "Mermelada", "Pringa", "Choripicante", "Paté", "sin aceite"
 ];
 
 export default function ComandasApp() {
   const [vistaActual, setVistaActual] = useState('zonas'); // 'zonas', 'pedido', 'resumen'
   const [zonaSeleccionada, setZonaSeleccionada] = useState(null);
   const [mesaSeleccionada, setMesaSeleccionada] = useState(null);
-  const [pedidos, setPedidos] = useState({});
+  const [categoriaSeleccionada, setCategoriaSeleccionada] = useState(null);
+  // Initialize pedidos from localStorage if available
+  const [pedidos, setPedidos] = useState(() => {
+    const savedPedidos = localStorage.getItem("comandas_pedidos");
+    return savedPedidos ? JSON.parse(savedPedidos) : {};
+  });
   const [mostrarModalCafe, setMostrarModalCafe] = useState(false);
   const [mostrarModalTostada, setMostrarModalTostada] = useState(false);
+
+  useEffect(() => {
+    const zonaGuardada = localStorage.getItem("zonaSeleccionada");
+    const mesaGuardada = localStorage.getItem("mesaSeleccionada");
+  
+    if (zonaGuardada && mesaGuardada) {
+      setZonaSeleccionada(zonaGuardada);
+      setMesaSeleccionada(mesaGuardada);
+      setVistaActual("pedido");
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("comandas_pedidos", JSON.stringify(pedidos));
+  }, [pedidos]);
+  
+  useEffect(() => {
+    if (zonaSeleccionada && mesaSeleccionada) {
+      localStorage.setItem("zonaSeleccionada", zonaSeleccionada);
+      localStorage.setItem("mesaSeleccionada", mesaSeleccionada);
+    }
+  }, [zonaSeleccionada, mesaSeleccionada]);
   
   // Configuración para café
   const [configCafe, setConfigCafe] = useState({
@@ -81,6 +112,8 @@ export default function ComandasApp() {
     setZonaSeleccionada(zona);
     setMesaSeleccionada(mesa);
     setVistaActual('pedido');
+    // Reset selected category when selecting a new table
+    setCategoriaSeleccionada(null);
   };
 
   const agregarProducto = (producto) => {
@@ -90,30 +123,48 @@ export default function ComandasApp() {
       setMostrarModalTostada(true);
     } else {
       if (!mesaKey) return;
-      setPedidos(prev => {
-        const actualizado = { ...prev };
-        if (!actualizado[mesaKey]) actualizado[mesaKey] = {};
-  
-        // Asegurarnos de que solo incrementamos en 1
-        const cantidadActual = actualizado[mesaKey][producto] || 0;
-        actualizado[mesaKey][producto] = cantidadActual + 1;
-  
-        return actualizado;
+      
+      // Use functional update with a deep copy to ensure we're working with fresh state
+      setPedidos(prevPedidos => {
+        const newPedidos = JSON.parse(JSON.stringify(prevPedidos));
+        
+        if (!newPedidos[mesaKey]) {
+          newPedidos[mesaKey] = {};
+        }
+        
+        const currentCount = newPedidos[mesaKey][producto] || 0;
+        newPedidos[mesaKey][producto] = currentCount + 1;
+        
+        return newPedidos;
       });
     }
   };
 
   const confirmarCafe = () => {
     if (!mesaKey) return;
+    
     const cafeSeleccionado = `${configCafe.cafeDescafeinado} ${configCafe.tipo} ${configCafe.tipo !== 'Solo' && configCafe.tipo !== 'Expreso' ? `con leche ${configCafe.leche}` : ''}, en ${configCafe.vasoTaza}, ${configCafe.temperatura}`;
-    setPedidos(prev => {
-      const actualizado = { ...prev };
-      if (!actualizado[mesaKey]) actualizado[mesaKey] = {};
-      actualizado[mesaKey][cafeSeleccionado] = (actualizado[mesaKey][cafeSeleccionado] || 0) + 1;
-      return actualizado;
+    
+    // Use the same deep copy approach as in agregarProducto
+    setPedidos(prevPedidos => {
+      // Create a deep copy of the previous state
+      const newPedidos = JSON.parse(JSON.stringify(prevPedidos));
+      
+      // Initialize the mesa object if needed
+      if (!newPedidos[mesaKey]) {
+        newPedidos[mesaKey] = {};
+      }
+      
+      // Get current count and increment by exactly 1
+      const currentCount = newPedidos[mesaKey][cafeSeleccionado] || 0;
+      newPedidos[mesaKey][cafeSeleccionado] = currentCount + 1;
+      
+      return newPedidos;
     });
+    
     setMostrarModalCafe(false);
   };
+  
 
   const toggleTopping = (topping) => {
     setConfigTostada(prev => {
@@ -134,17 +185,28 @@ export default function ComandasApp() {
 
   const confirmarTostada = () => {
     if (!mesaKey) return;
+    
     let descripcionTostada = `Tostada de ${configTostada.tipoPan} ${configTostada.tamanio}`;
     
     if (configTostada.toppingsSeleccionados.length > 0) {
       descripcionTostada += ` con ${configTostada.toppingsSeleccionados.join(", ")}`;
     }
     
-    setPedidos(prev => {
-      const actualizado = { ...prev };
-      if (!actualizado[mesaKey]) actualizado[mesaKey] = {};
-      actualizado[mesaKey][descripcionTostada] = (actualizado[mesaKey][descripcionTostada] || 0) + 1;
-      return actualizado;
+    // Use the same deep copy approach
+    setPedidos(prevPedidos => {
+      // Create a deep copy of the previous state
+      const newPedidos = JSON.parse(JSON.stringify(prevPedidos));
+      
+      // Initialize the mesa object if needed
+      if (!newPedidos[mesaKey]) {
+        newPedidos[mesaKey] = {};
+      }
+      
+      // Get current count and increment by exactly 1
+      const currentCount = newPedidos[mesaKey][descripcionTostada] || 0;
+      newPedidos[mesaKey][descripcionTostada] = currentCount + 1;
+      
+      return newPedidos;
     });
     
     // Resetear selección de toppings pero mantener pan y tamaño para próximas tostadas
@@ -159,7 +221,7 @@ export default function ComandasApp() {
   const eliminarProducto = (producto) => {
     if (!mesaKey) return;
     setPedidos(prev => {
-      const actualizado = { ...prev };
+      const actualizado = JSON.parse(JSON.stringify(prev));
       if (actualizado[mesaKey] && actualizado[mesaKey][producto]) {
         if (actualizado[mesaKey][producto] > 1) {
           actualizado[mesaKey][producto] -= 1;
@@ -173,6 +235,7 @@ export default function ComandasApp() {
 
   const volverAZonas = () => {
     setVistaActual('zonas');
+    setCategoriaSeleccionada(null);
   };
 
   const verResumen = () => {
@@ -182,6 +245,47 @@ export default function ComandasApp() {
   const contarTotalPedidos = (mesaKey) => {
     if (!pedidos[mesaKey]) return 0;
     return Object.values(pedidos[mesaKey]).reduce((total, cantidad) => total + cantidad, 0);
+  };
+
+  const renderResumenMesa = () => {
+    return (
+      <div className="resumen-mesa">
+        <h3>Resumen de la Mesa</h3>
+        {Object.entries(pedidoActual).length === 0 ? (
+          <p className="sin-pedidos">No hay productos en esta mesa.</p>
+        ) : (
+          <ul className="lista-pedidos">
+            {Object.entries(pedidoActual).map(([prod, qty]) => (
+              <li key={prod} className="item-pedido">
+                <div className="info-pedido">
+                  <span className="cantidad-producto">{qty}x</span>
+                  <span className="nombre-producto">{prod}</span>
+                </div>
+                <div className="acciones-pedido">
+                  <button className="btn-eliminar" onClick={() => eliminarProducto(prod)}>
+                    -
+                  </button>
+                  <button 
+                    className="btn-agregar" 
+                    onClick={() => {
+                      if (!mesaKey) return;
+                      setPedidos(prev => {
+                        const newPedidos = JSON.parse(JSON.stringify(prev));
+                        if (!newPedidos[mesaKey]) newPedidos[mesaKey] = {};
+                        newPedidos[mesaKey][prod] = (newPedidos[mesaKey][prod] || 0) + 1;
+                        return newPedidos;
+                      });
+                    }}
+                  >
+                    +
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -215,6 +319,8 @@ export default function ComandasApp() {
                         <span className="mesa-pedidos">{totalPedidos}</span>
                       )}
                     </button>
+
+                    
                   );
                 })}
               </div>
@@ -228,36 +334,47 @@ export default function ComandasApp() {
           <div className="info-mesa">
             <h2>{zonaSeleccionada} - Mesa {mesaSeleccionada}</h2>
             <button className="btn-resumen" onClick={verResumen}>
-              Ver Resumen
+              Ver Resumen Completo
             </button>
           </div>
+
+          {/* Show the summary first */}
+          {renderResumenMesa()}
 
           <div className="categorias-tabs">
             {Object.keys(categorias).map((cat) => (
               <button 
                 key={cat} 
-                className="categoria-tab"
-                onClick={() => document.getElementById(cat).scrollIntoView({ behavior: 'smooth' })}
+                className={`categoria-tab ${categoriaSeleccionada === cat ? 'activa' : ''}`}
+                onClick={() => setCategoriaSeleccionada(cat === categoriaSeleccionada ? null : cat)}
               >
                 {cat}
               </button>
             ))}
           </div>
 
-          <div className="productos-scroll">
-            {Object.entries(categorias).map(([cat, items]) => (
-              <div key={cat} id={cat} className="categoria-seccion">
-                <h3 className="categoria-titulo">{cat}</h3>
+          {/* Only show products for the selected category */}
+          {categoriaSeleccionada && (
+            <div className="productos-scroll">
+              <div className="categoria-seccion">
+                <h3 className="categoria-titulo">{categoriaSeleccionada}</h3>
                 <div className="productos-grid">
-                  {items.map((item) => (
-                    <button key={item} className="producto-btn" onClick={() => agregarProducto(item)}>
+                  {categorias[categoriaSeleccionada].map((item) => (
+                    <button 
+                      key={item} 
+                      className="producto-btn" 
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent event bubbling
+                        agregarProducto(item);
+                      }}
+                    >
                       {item}
                     </button>
                   ))}
                 </div>
               </div>
-            ))}
-          </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -282,26 +399,20 @@ export default function ComandasApp() {
                     <button className="btn-eliminar" onClick={() => eliminarProducto(prod)}>
                       -
                     </button>
-                                <button 
-            className="btn-agregar" 
-            onClick={() => {
-                if (!mesaKey) return;
-
-                setPedidos(prev => {
-                // Usar la función de actualización para manejar el estado más reciente
-                return {
-                    ...prev,
-                    [mesaKey]: {
-                    ...prev[mesaKey],
-                    [prod]: (prev[mesaKey]?.[prod] || 0) + 1 // Aseguramos que incrementa solo en 1
-                    }
-                };
-                });
-            }}
-            >
-            +
-            </button>
-
+                    <button 
+                      className="btn-agregar" 
+                      onClick={() => {
+                        if (!mesaKey) return;
+                        setPedidos(prev => {
+                          const newPedidos = JSON.parse(JSON.stringify(prev));
+                          if (!newPedidos[mesaKey]) newPedidos[mesaKey] = {};
+                          newPedidos[mesaKey][prod] = (newPedidos[mesaKey][prod] || 0) + 1;
+                          return newPedidos;
+                        });
+                      }}
+                    >
+                      +
+                    </button>
                   </div>
                 </li>
               ))}
